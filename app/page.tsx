@@ -1,101 +1,195 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, useEffect } from "react"
+import { Eye, TrendingUp, TrendingDown, Wallet } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { MonthSelector } from "@/components/month-selector"
+import { FinancialTable } from "@/components/financial-table"
+import { FinancialChart } from "@/components/financial-chart"
+import type { MonthlyData } from "@/lib/db"
+
+export default function Dashboard() {
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
+  const [data, setData] = useState<MonthlyData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchData = async (year: number, month: number) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/transactions/monthly?year=${year}&month=${month}`)
+      if (response.ok) {
+        const monthlyData = await response.json()
+        setData(monthlyData)
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData(selectedYear, selectedMonth)
+  }, [selectedYear, selectedMonth])
+
+  const handleDateChange = (year: number, month: number) => {
+    setSelectedYear(year)
+    setSelectedMonth(month)
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  const getPercentageColor = (percentage: number) => {
+    return percentage >= 50 ? "text-red-600" : "text-green-600"
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Cargando datos...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="flex flex-col min-h-screen">
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+        <SidebarTrigger className="-ml-1" />
+        <div className="flex items-center gap-2">
+          <Eye className="h-5 w-5 text-primary" />
+          <h1 className="text-xl font-semibold">Veo mi dinero</h1>
+        </div>
+      </header>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <main className="flex-1 space-y-6 p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Dashboard Financiero</h2>
+            <p className="text-muted-foreground">Resumen de tus finanzas personales</p>
+          </div>
+          <MonthSelector selectedYear={selectedYear} selectedMonth={selectedMonth} onDateChange={handleDateChange} />
+        </div>
+
+        {/* Resumen financiero */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {data ? formatCurrency(data.totalIngresos) : "$0"}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Egresos Totales</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{data ? formatCurrency(data.totalEgresos) : "$0"}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Saldo Restante</CardTitle>
+              <Wallet className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${data && data.saldo >= 0 ? "text-green-600" : "text-red-600"}`}>
+                {data ? formatCurrency(data.saldo) : "$0"}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">% de Gastos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${data ? getPercentageColor(data.porcentajeGastos) : ""}`}>
+                {data ? `${data.porcentajeGastos.toFixed(1)}%` : "0%"}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Consejo dinámico */}
+        {data && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Consejo Financiero</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg">
+                Tus gastos básicos son el{" "}
+                <span className={`font-bold ${getPercentageColor(data.porcentajeGastos)}`}>
+                  {data.porcentajeGastos.toFixed(1)}%
+                </span>{" "}
+                de tus ingresos totales.
+                {data.porcentajeGastos >= 50 ? (
+                  <span className="block mt-2 text-sm text-muted-foreground">
+                    💡 Considera revisar tus gastos para mantener un mejor equilibrio financiero.
+                  </span>
+                ) : (
+                  <span className="block mt-2 text-sm text-muted-foreground">
+                    ✅ ¡Excelente! Mantienes un buen control de tus gastos.
+                  </span>
+                )}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tablas y gráficos */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ingresos</CardTitle>
+              <CardDescription>Detalle de ingresos por categoría</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {data && (
+                <>
+                  <FinancialTable data={data.ingresos} title="" type="ingreso" />
+                  {data.ingresos.length > 0 && <FinancialChart data={data.ingresos} type="ingreso" />}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Egresos</CardTitle>
+              <CardDescription>Detalle de gastos por categoría</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {data && (
+                <>
+                  <FinancialTable data={data.egresos} title="" type="egreso" />
+                  {data.egresos.length > 0 && <FinancialChart data={data.egresos} type="egreso" />}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
 }
